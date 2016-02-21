@@ -2,11 +2,7 @@
 cal http = require "resty.http"
 local json = require "cjson"
  
-local resty_string       = require "resty.string"
- 
-local resty_sha256      = require "resty.sha256"
-local resty_hmac_sha256 = require "resty.hmac"
-local hmac_sha256       = resty_hmac_sha256:new()
+local resty_string       = require "resty.string" 
 
 local base64_decode =   ngx.decode_base64 
 local base64_encode =   ngx.encode_base64
@@ -22,8 +18,8 @@ local sha1          =   ngx.hmac_sha1
 
 local _M    =   { 
 
-    __accessKey =   'AKIAITU3O3YBVUCD475A';
-    __secretKey =   "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";
+    __accessKey =   '1233423123';		-- default accessKey
+    __secretKey =   "2312333333333333333333";	--default secretKey
     
     ACL_PRIVATE             = 'private';
     ACL_PUBLIC_READ         = 'public-read';    
@@ -31,6 +27,7 @@ local _M    =   {
     
 }   
 
+-- content type and 
 local allowd_types= {
     ['voice/htk']                   =   'hta';
     ['voice/hta']                   =   'hta';
@@ -71,23 +68,14 @@ end
 function _M:__getSignature(str)
     -- public static function __getSignature(str) {
      -- return 'AWS '.self::$__accessKey.':'.base64_encode(hash_hmac('sha1', $string, self::$__secretKey, true)  );
-    -- } 
-    local sha256 = resty_sha256:new()
-    sha256:update(str)
-    local digest = sha256:final()
-    -- ngx.say("sha256: ", str.to_hex(digest))
+    -- }   
+    local digest = sha256:final() 
     
     local service = 'AWS'
     local key   =   base64_encode(sha1(self.__secretKey,str))
     return service..' '.. self.__accessKey ..':'..key
 end
 
-
-
-local function HMAC(key,str) 
-    return hmac_sha256:digest("sha256",key,str)
-end
- 
  
  
 
@@ -152,14 +140,16 @@ end
 function _M:get_obejct_name(content,content_type)
  
     local local_date    =   self:getDate()
-    
-    -- 加入时间因素 防止拷贝文件客户端冲突
+     
+    -- add time as md5 element so that the  same file generate different filename
+    -- if you want save your S3 space you can change the code below into `ngx_md5(self.content_md5_bin)`
     local md5       =   ngx_md5(self.content_md5_bin .. ngx_time())
     local md5sum    =   string_sub(md5,4,20)..'_'..string_sub(md5,28,32);
     local filename  =   local_date..'/'..md5sum..'.'..(allowd_types[content_type] or 'obj')
     return filename;
 end
 
+-- judge is image or not
 function _M:is_content_image(content_type)
     local name  =   allowd_types[content_type]
     
