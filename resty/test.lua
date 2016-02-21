@@ -1,60 +1,44 @@
-# lua s3 client
+local cnf 		= 	require "config.HTconfig"
+local upload 	= 	require "resty.upload"
+-- clone from https://github.com/openresty/lua-resty-upload
+local json 		=	require "cjson"
+local s3_upload	=	require "resty.s3_upload"
 
-the HTTP client based on  https://github.com/pintsized/lua-resty-http
+local base64_decode	=	ngx.decode_base64 
+local base64_encode	=	ngx.encode_base64
+local string_len	=	string.len
+local ngx_find		=	ngx.re.find
+local chunk_size 	=	1024*10 -- should be set to 4096 or 8192
+				 
+local ngx_gsub		=	ngx.re.gsub
+local string_sub		=	string.sub
 
+local form, err = upload:new(chunk_size)
+if not form then
+	ngx.log(ngx.ERR, "failed to new upload: ", err)
+	ngx.exit(500)
+end
 
-## useage
-
-upload content that client upload into this server,
-`upload(content, content_type, object_name )`
-
-the argument `object_name`  is optional, if you don't specified  object_name this file name will automatically specified as filemd5 append with content type postfix
-like this
-`http://buckname.s3.amazonaws.com/20160221/1943e3f9691387765_cc38a.obj`
-## example code
- ``` lua
+local allowd_types	=	s3_upload.allowd_types
+local timeOut		=	cnf.S3_UPLOAD_TIMEOUT
+form:set_timeout(timeOut) -- 1 sec
  
-		local cnf 		= 	require "config.HTconfig"
-		local upload 	= 	require "resty.upload"
-		-- clone from https://github.com/openresty/lua-resty-upload
-		local json 		=	require "cjson"
-		local s3_upload	=	require "resty.s3_upload"
-	
-	local base64_decode	=	ngx.decode_base64 
-	local base64_encode	=	ngx.encode_base64
-	local string_len	=	string.len
-	local ngx_find		=	ngx.re.find
-	local chunk_size 	=	1024*10 -- should be set to 4096 or 8192
-					 
-	local ngx_gsub		=	ngx.re.gsub
-	local string_sub		=	string.sub
-	
-	local form, err = upload:new(chunk_size)
-	if not form then
-		ngx.log(ngx.ERR, "failed to new upload: ", err)
-		ngx.exit(500)
-	end
-	
-	local allowd_types	=	s3_upload.allowd_types
-	local timeOut		=	cnf.S3_UPLOAD_TIMEOUT
-	form:set_timeout(timeOcut) -- 1 se
-	 
-	local appender			=	''
-	local start_upload		=	false;
-	local data_upload		=	false;
-	local content_type		=	'';
-	local data_ready		=	false;
-	  
-	local uploader = s3_upload:new(cnf.AWS_accessKey,cnf.AWS_secretKey,cnf.CHATVOC_BUCKET,timeOut)
+local appender			=	''
+local start_upload		=	false;
+local data_upload		=	false;
+local content_type		=	'';
+local data_ready		=	false;
+  
+local uploader = s3_upload:new(cnf.AWS_accessKey,cnf.AWS_secretKey,cnf.CHATVOC_BUCKET,timeOut)
  
  
-	while true do
-			local typ, res, err = form:read()
-			if not typ then
-				ngx.say(ngx.ERR,"failed to read: ", err)
-				return
-			end 
-			
+while true do
+		local typ, res, err = form:read()
+		if not typ then
+			ngx.say(ngx.ERR,"failed to read: ", err)
+			return
+		end 
+		
 		if typ == "header" then 
 			content_type	=	res[2]
 			ngx.log(ngx.INFO,"content_type: ", content_type)
@@ -117,4 +101,3 @@ like this
          break 
     end 
 end 
-```
